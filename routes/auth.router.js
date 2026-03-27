@@ -2,7 +2,6 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from "crypto";
 import axios from "axios";
-import { usage } from '@elevenlabs/elevenlabs-js/api';
 
 
 export default function authRouter(redisClient, googleClient, astraDB) {
