@@ -2,7 +2,7 @@ import cron from "node-cron";
 
 export function startUsageResetJob(userCollection) {
   // Runs at 00:00 on 1st of every month
-  DEFAULT_USAGE_VALUE = {tavily: 0, elevenlabs: 0};
+  const DEFAULT_USAGE_VALUE = {tavily: 0, elevenlabs: 0};
   cron.schedule("0 0 1 * *", async () => {
     console.log("🔄 Resetting usage for all users...");
 
