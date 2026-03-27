@@ -191,18 +191,21 @@ export default function authRouter(redisClient, googleClient, astraDB) {
 
       if (!dbSearch) {
         await userCollection.insertOne({
-          provider: user.provider,
-          providerId: user.providerId,
+          providers: {[user.provider] : user.providerId},
           email: user.email,
           name: user.name,
           createdAt: new Date(),
           tokenIssuedAt: iat,
-          $vector: await inferenceAPI(user.name)
+          $vector: await inferenceAPI(user.email)
         })
       } else {
+        providers = dbSearch.providers || {};
+        if (!providers[user.provider]) {
+          providers[user.provider] = user.providerId;
+        }
         await userCollection.updateOne(
           { _id: user._id},
-          { $set: { lastModified: new Date(), tokenIssuedAt: iat } }
+          { $set: { lastModified: new Date(), tokenIssuedAt: iat, providers } }
         );
       }
 
