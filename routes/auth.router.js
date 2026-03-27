@@ -126,7 +126,6 @@ export default function authRouter(redisClient, googleClient, astraDB) {
     );
 
     const accessToken = data.access_token;
-    console.log("GitHub Access Token:", accessToken, "\nFull Response:", data);
 
     // 👤 Get user profile
     const userRes = await axios.get("https://api.github.com/user", {
