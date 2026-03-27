@@ -10,7 +10,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
 
   // Step 1: Redirect to Google
   router.get("/google", (req, res) => {
-    const redirect_uri = "http://localhost:5000/api/auth/google/callback";
+    const redirect_uri = "https://iniyaai-backend.onrender.com/api/auth/google/callback";
 
     const url =
       "https://accounts.google.com/o/oauth2/v2/auth?" +
@@ -43,7 +43,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           code,
           client_id: process.env.GOOGLE_CLIENT_ID,
           client_secret: process.env.GOOGLE_CLIENT_SECRET,
-          redirect_uri: "http://localhost:5000/api/auth/google/callback",
+          redirect_uri: "https://iniyaai-backend.onrender.com/api/auth/google/callback",
           grant_type: "authorization_code",
         }
       );
