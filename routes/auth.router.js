@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from "crypto";
 import axios from "axios";
+import { usage } from '@elevenlabs/elevenlabs-js/api';
 
 
 export default function authRouter(redisClient, googleClient, astraDB) {
@@ -196,6 +197,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           name: user.name,
           createdAt: new Date(),
           tokenIssuedAt: iat,
+          usage: {tavily: 0, elevenlabs: 0},
           $vector: await inferenceAPI(user.email)
         })
       } else {

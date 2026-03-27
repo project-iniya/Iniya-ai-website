@@ -25,7 +25,7 @@ export default function apisRouter(astraDB) {
       return res.status(401).json({ error: "Token has been invalidated. Please log in again.", logout: true });
     }
 
-    if (dbUser.usage.tavily >= 10 ) {
+    if (dbUser.usage?.tavily >= 10 ) {
       return res.status(403).json({ error: "Tavily API usage limit reached" });
     }
 
