@@ -13,7 +13,7 @@ export default function apisRouter(astraDB) {
   const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVEN_API_KEY });
   
   router.get("/tavily", verifyToken, async (req, res) => {
-    const {text, func, intrct} = req.query;
+    const {text, func, options} = req.query;
 
     const dbUser = await userCollection.findOne({ email: req.user.email });
 
@@ -33,13 +33,9 @@ export default function apisRouter(astraDB) {
       return res.status(400).json({ error: "Missing 'text' or 'function' query parameters" });
     }
 
-    if (func === "crawl" && !intrct){
-      res.status(400).json({ error: "Missing 'instructions' for crawl function" });
-    }
-
     try {
       if (func === "search") {
-        const result = await tvly.search(text);
+        const result = await tvly.search(text, options);
         await userCollection.updateOne(
           { email: req.user.email },
           { $inc: { "usage.tavily": 1 } }
@@ -47,7 +43,7 @@ export default function apisRouter(astraDB) {
         res.json(result);
       }
       else if (func === "extract") {
-        const result = await tvly.extract(text);
+        const result = await tvly.extract(text, options);
         await userCollection.updateOne(
           { email: req.user.email },
           { $inc: { "usage.tavily": 1 } }
@@ -55,7 +51,7 @@ export default function apisRouter(astraDB) {
         res.json(result);
       }
       else if (func === "crawl") {
-        const result = await tvly.crawl(text, {instructions: intrct});
+        const result = await tvly.crawl(text, options);
         await userCollection.updateOne(
           { email: req.user.email },
           { $inc: { "usage.tavily": 1 } }
@@ -63,7 +59,7 @@ export default function apisRouter(astraDB) {
         res.json(result);
       }
       else if (func === "map") {
-        const result = await tvly.map(text);
+        const result = await tvly.map(text, options);
         await userCollection.updateOne(
           { email: req.user.email },
           { $inc: { "usage.tavily": 1 } }
@@ -71,7 +67,7 @@ export default function apisRouter(astraDB) {
         res.json(result);
       }
       else if (func === "research") {
-        const result = await tvly.research(text);
+        const result = await tvly.research(text, options);
         await userCollection.updateOne(
           { email: req.user.email },
           { $inc: { "usage.tavily": 1 } }
