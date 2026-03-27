@@ -22,6 +22,18 @@ export default function authRouter(redisClient, googleClient, astraDB) {
     res.redirect(url);
   });
 
+  router.get("/github", (req, res) => {
+  const redirect_uri = "https://iniyaai-backend.onrender.com/api/auth/github/callback";
+
+  const url =
+    "https://github.com/login/oauth/authorize?" +
+    `client_id=${process.env.GITHUB_CLIENT_ID}` +
+    `&redirect_uri=${redirect_uri}` +
+    `&scope=user:email`;
+
+  res.redirect(url);
+});
+
   router.get("/google/callback", async (req, res) => {
     const code = req.query.code;
 
@@ -59,7 +71,8 @@ export default function authRouter(redisClient, googleClient, astraDB) {
       const payload = ticket.getPayload();
 
       const user = {
-        googleId: payload.sub,
+        provider: "google",
+        providerId: payload.sub,
         email: payload.email,
         name: payload.name,
       };
@@ -80,6 +93,82 @@ export default function authRouter(redisClient, googleClient, astraDB) {
     }
   });
 
+  router.get("/github/callback", async (req, res) => {
+  const code = req.query.code;
+
+  try {
+    // 🔒 Rate limit (same as Google)
+    const ipKey = `login_attempt:${req.ip}`;
+    const attempts = await redisClient.incr(ipKey);
+
+    if (attempts === 1) {
+      await redisClient.expire(ipKey, 60);
+    }
+
+    if (attempts > 10) {
+      return res.status(429).send("Too many login attempts");
+    }
+
+    // 🔑 Exchange code for access token
+    const { data } = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri: "http://localhost:5000/api/auth/github/callback",
+      },
+      {
+        headers: {
+          Accept: "application/json",
+        },
+      }
+    );
+
+    const accessToken = data.access_token;
+
+    // 👤 Get user profile
+    const userRes = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const profile = userRes.data;
+
+    // 📧 Get email (GitHub may not return it directly)
+    const emailRes = await axios.get("https://api.github.com/user/emails", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const primaryEmail = emailRes.data.find(e => e.primary)?.email;
+
+    const user = {
+      provider: "github",
+      providerId: profile.id,
+      email: primaryEmail,
+      name: profile.name || profile.login,
+    };
+
+    // 🔐 Same temp code flow
+    const tempCode = crypto.randomBytes(32).toString("hex");
+
+    await redisClient.set(
+      `auth_code:${tempCode}`,
+      JSON.stringify(user),
+      { EX: 60 }
+    );
+
+    res.redirect(`http://localhost:3001/?code=${tempCode}`);
+
+  } catch (error) {
+    console.error(error.response?.data || error.message);
+    res.status(500).send("GitHub authentication failed");
+  }
+});
+
   router.post("/exchange-code", async (req, res) => {
     const { code } = req.body;
     try {
@@ -91,11 +180,12 @@ export default function authRouter(redisClient, googleClient, astraDB) {
 
       const user = JSON.parse(data);
 
-      dbSearch = await userCollection.findOne({ googleId: user.googleId });
+      let dbSearch = await userCollection.findOne({ providerId: user.providerId });
 
       if (!dbSearch) {
         await userCollection.insertOne({
-          googleId: user.googleId,
+          provider: user.provider,
+          providerId: user.providerId,
           email: user.email,
           name: user.name,
           createdAt: new Date(),
@@ -103,12 +193,11 @@ export default function authRouter(redisClient, googleClient, astraDB) {
         })
       } else {
         await userCollection.updateOne(
-          { googleId: user.googleId },
+          { _id: user._id},
           { $set: { lastModified: new Date() } }
         );
       }
       
-
       // Create JWT
       const token = jwt.sign(user, process.env.JWT_SECRET, {
         expiresIn: "28d",
