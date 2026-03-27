@@ -86,6 +86,8 @@ export default function apisRouter(astraDB) {
       res.status(500).json({ error: "Internal server error" });
     }
   });
+
+  return router;
 }
 
 
