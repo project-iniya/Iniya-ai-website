@@ -179,8 +179,15 @@ export default function authRouter(redisClient, googleClient, astraDB) {
       }
 
       const user = JSON.parse(data);
+      
+      // Create JWT
+      const token = jwt.sign(user, process.env.JWT_SECRET, {
+        expiresIn: "28d",
+      });
 
-      let dbSearch = await userCollection.findOne({ providerId: user.providerId });
+      let iat = jwt.decode(token).iat;
+
+      let dbSearch = await userCollection.findOne({ email: user.email });
 
       if (!dbSearch) {
         await userCollection.insertOne({
@@ -189,19 +196,16 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           email: user.email,
           name: user.name,
           createdAt: new Date(),
+          tokenIssuedAt: iat,
           $vector: await inferenceAPI(user.name)
         })
       } else {
         await userCollection.updateOne(
           { _id: user._id},
-          { $set: { lastModified: new Date() } }
+          { $set: { lastModified: new Date(), tokenIssuedAt: iat } }
         );
       }
-      
-      // Create JWT
-      const token = jwt.sign(user, process.env.JWT_SECRET, {
-        expiresIn: "28d",
-      });
+
 
       // ❌ Delete code (one-time use)
       await redisClient.del(`auth_code:${code}`);
@@ -210,6 +214,26 @@ export default function authRouter(redisClient, googleClient, astraDB) {
     } catch (error) {
       console.error(error);
       res.status(500).send("Server error");
+    }
+  });
+
+  router.post("/verify-token", (req, res) => {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: "Token is required" });
+    }
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      user = userCollection.findOne({ email: decoded.email });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (user.tokenIssuedAt > decoded.iat) {
+        return res.status(401).json({ error: "Token has been invalidated. Please log in again.", logout: true });
+      }
+      res.json({ valid: true });
+    } catch (error) {
+      return res.status(401).json({ error: "Invalid or expired token" });
     }
   });
 
