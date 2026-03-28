@@ -186,6 +186,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
       });
 
       let iat = jwt.decode(token).iat;
+      const devid = crypto.randomBytes(32).toString("hex");
 
       let dbSearch = await userCollection.findOne({ email: user.email });
 
@@ -196,6 +197,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           name: user.name,
           createdAt: new Date(),
           tokenIssuedAt: iat,
+          devid,
           usage: {tavily: 0, elevenlabs: 0},
           $vector: await inferenceAPI(user.email)
         })
@@ -206,7 +208,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
         }
         await userCollection.updateOne(
           { _id: user._id},
-          { $set: { lastModified: new Date(), tokenIssuedAt: iat, providers } }
+          { $set: { lastModified: new Date(), tokenIssuedAt: iat, providers, devid } }
         );
       }
 
@@ -214,30 +216,60 @@ export default function authRouter(redisClient, googleClient, astraDB) {
       // ❌ Delete code (one-time use)
       await redisClient.del(`auth_code:${code}`);
 
-      res.json({ token });
+      res.json({ token, devid });
     } catch (error) {
       console.error(error);
       res.status(500).send("Server error");
     }
   });
 
-  router.post("/verify-token", (req, res) => {
-    const { token } = req.body;
+  router.post("/verify-token", async (req, res) => {
+    const { token, devid } = req.body;
     if (!token) {
-      return res.status(400).json({ error: "Token is required" });
+      return res.status(400).json({ error: "Token is required", valid: false });
     }
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      user = userCollection.findOne({ email: decoded.email });
+      user = await userCollection.findOne({ email: decoded.email });
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(404).json({ error: "User not found", valid: false });
       }
       if (user.tokenIssuedAt > decoded.iat) {
-        return res.status(401).json({ error: "Token has been invalidated. Please log in again.", logout: true });
+        return res.status(401).json({ error: "Token has been invalidated. Please log in again.", valid: false});
+      }
+      if (user.devid !== devid){
+        return res.status(401).json({ error: "Device Id doesnt match. Please log in again.", valid: false});
       }
       res.json({ valid: true });
     } catch (error) {
       return res.status(401).json({ error: "Invalid or expired token" });
+    }
+  });
+
+  router.post("/logout", async (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    const { devid } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: "Token is required", success: false });
+    }
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      user = await userCollection.findOne({ email: decoded.email });
+      if (!user) {
+        return res.status(404).json({ error: "User not found", success: false });
+      }
+      if (user.tokenIssuedAt > decoded.iat) {
+        return res.status(401).json({ error: "Token has been invalidated. Please log in again.", success: false });
+      }
+      if (user.devid !== devid){
+        return res.status(401).json({ error: "Device Id doesnt match. Please log in again.", success: false });
+      }
+
+      await userCollection.deleteOne({email: decoded.email})
+      return res.status(200).json({success: true})
+    
+    } catch (error) {
+      return res.status(401).json({ error: "Invalid or expired token", errorMsg: error });
     }
   });
 
