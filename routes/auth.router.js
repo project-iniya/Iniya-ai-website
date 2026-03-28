@@ -199,7 +199,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           tokenIssuedAt: iat,
           devid,
           usage: {tavily: 0, elevenlabs: 0},
-          $vector: await inferenceAPI(user.email)
+          $vectorize: user.email
         })
       } else {
         let providers = dbSearch.providers || {};
@@ -274,32 +274,4 @@ export default function authRouter(redisClient, googleClient, astraDB) {
   });
 
   return router;
-}
-
-async function inferenceAPI(input) {
-    const API_URL = "https://router.huggingface.co/hf-inference/models/intfloat/multilingual-e5-small/pipeline/feature-extraction";
-    const HEADERS = {
-        "Authorization": `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        "Content-Type": "application/json"
-    };
-
-    const body = JSON.stringify({ inputs: input });
-
-    try {
-        const res = await fetch(API_URL, {
-            method: "POST",
-            headers: HEADERS,
-            body
-        });
-
-        if (!res.ok) {
-            return {error: `API Error: ${res.statusText}`, status: res.status};;
-        }
-
-        const text = await res.text();
-        const json = JSON.parse(text);
-        return json;
-    } catch (err) {
-        return {error: err};
-    }
 }
