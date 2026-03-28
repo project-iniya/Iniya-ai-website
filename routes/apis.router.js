@@ -12,8 +12,8 @@ export default function apisRouter(astraDB) {
   const tvly = tavily({ apiKey: process.env.TAVILY_API_KEY });
   const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVEN_API_KEY });
   
-  router.get("/tavily", verifyToken, async (req, res) => {
-    const {text, func, options} = req.query;
+  router.post("/tavily", verifyToken, async (req, res) => {
+    const {text, func, options} = req.body;
 
     const dbUser = await userCollection.findOne({ email: req.user.email });
 
