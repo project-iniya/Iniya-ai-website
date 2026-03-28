@@ -230,7 +230,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
     }
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      user = await userCollection.findOne({ email: decoded.email });
+      const user = await userCollection.findOne({ email: decoded.email });
       if (!user) {
         return res.status(404).json({ error: "User not found", valid: false });
       }
@@ -242,7 +242,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
       }
       res.json({ valid: true });
     } catch (error) {
-      return res.status(401).json({ error: "Invalid or expired token" });
+      return res.status(401).json({ error: "Invalid or expired token", error, valid:false });
     }
   });
 
