@@ -202,7 +202,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           $vector: await inferenceAPI(user.email)
         })
       } else {
-        providers = dbSearch.providers || {};
+        let providers = dbSearch.providers || {};
         if (!providers[user.provider]) {
           providers[user.provider] = user.providerId;
         }
