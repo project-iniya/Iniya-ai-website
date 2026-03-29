@@ -245,10 +245,12 @@ router.get("/facebook", (req, res) => {
 
   });
 
-  if (!code) return res.status(400).send("No code provided");
+
 
   router.post("/exchange-code", async (req, res) => {
     const { code } = req.body;
+    if (!code) return res.status(400).send("No code provided");
+
     try {
       const data = await redisClient.get(`auth_code:${code}`);
 
