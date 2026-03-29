@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from "crypto";
 import axios from "axios";
+import nodemailer from "nodemailer";
 
 
 export default function authRouter(redisClient, googleClient, astraDB) {
@@ -32,6 +33,18 @@ export default function authRouter(redisClient, googleClient, astraDB) {
     `&scope=user:email`;
 
   res.redirect(url);
+});
+
+router.get("/facebook", (req, res) => {
+  const redirect_uri = "https://iniyaai-backend.onrender.com/api/auth/facebook/callback"
+
+  const fbAuthURL = 
+    `https://www.facebook.com/v25.0/dialog/oauth?` +
+    `client_id=${process.env.FB_APP_ID}` +
+    `&redirect_uri=${redirect_uri}` +
+    `&scope=email,public_profile`;
+
+  res.redirect(fbAuthURL);
 });
 
   router.get("/google/callback", async (req, res) => {
@@ -94,80 +107,145 @@ export default function authRouter(redisClient, googleClient, astraDB) {
   });
 
   router.get("/github/callback", async (req, res) => {
-  const code = req.query.code;
+    const code = req.query.code;
 
-  try {
-    // 🔒 Rate limit (same as Google)
-    const ipKey = `login_attempt:${req.ip}`;
-    const attempts = await redisClient.incr(ipKey);
+    try {
+      // 🔒 Rate limit (same as Google)
+      const ipKey = `login_attempt:${req.ip}`;
+      const attempts = await redisClient.incr(ipKey);
 
-    if (attempts === 1) {
-      await redisClient.expire(ipKey, 60);
-    }
-
-    if (attempts > 10) {
-      return res.status(429).send("Too many login attempts");
-    }
-
-    // 🔑 Exchange code for access token
-    const { data } = await axios.post(
-      "https://github.com/login/oauth/access_token",
-      {
-        client_id: process.env.GITHUB_CLIENT_ID,
-        client_secret: process.env.GITHUB_CLIENT_SECRET,
-        code,
-        redirect_uri: "https://iniyaai-backend.onrender.com/api/auth/github/callback",
-      },
-      {
-        headers: {
-          Accept: "application/json",
-        },
+      if (attempts === 1) {
+        await redisClient.expire(ipKey, 60);
       }
-    );
 
-    const accessToken = data.access_token;
+      if (attempts > 10) {
+        return res.status(429).send("Too many login attempts");
+      }
 
-    // 👤 Get user profile
-    const userRes = await axios.get("https://api.github.com/user", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+      // 🔑 Exchange code for access token
+      const { data } = await axios.post(
+        "https://github.com/login/oauth/access_token",
+        {
+          client_id: process.env.GITHUB_CLIENT_ID,
+          client_secret: process.env.GITHUB_CLIENT_SECRET,
+          code,
+          redirect_uri: "https://iniyaai-backend.onrender.com/api/auth/github/callback",
+        },
+        {
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
 
-    const profile = userRes.data;
+      const accessToken = data.access_token;
 
-    // 📧 Get email (GitHub may not return it directly)
-    const emailRes = await axios.get("https://api.github.com/user/emails", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+      // 👤 Get user profile
+      const userRes = await axios.get("https://api.github.com/user", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-    const primaryEmail = emailRes.data.find(e => e.primary)?.email;
+      const profile = userRes.data;
 
-    const user = {
-      provider: "github",
-      providerId: profile.id,
-      email: primaryEmail,
-      name: profile.name || profile.login,
-    };
+      // 📧 Get email (GitHub may not return it directly)
+      const emailRes = await axios.get("https://api.github.com/user/emails", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-    // 🔐 Same temp code flow
-    const tempCode = crypto.randomBytes(32).toString("hex");
+      const primaryEmail = emailRes.data.find(e => e.primary)?.email;
 
-    await redisClient.set(
-      `auth_code:${tempCode}`,
-      JSON.stringify(user),
-      { EX: 60 }
-    );
+      const user = {
+        provider: "github",
+        providerId: profile.id,
+        email: primaryEmail,
+        name: profile.name || profile.login,
+      };
 
-    res.redirect(`http://localhost:3001/?code=${tempCode}`);
+      // 🔐 Same temp code flow
+      const tempCode = crypto.randomBytes(32).toString("hex");
 
-  } catch (error) {
-    console.error(error.response?.data || error.message);
-    res.status(500).send("GitHub authentication failed");
-  }
-});
+      await redisClient.set(
+        `auth_code:${tempCode}`,
+        JSON.stringify(user),
+        { EX: 60 }
+      );
+
+      res.redirect(`http://localhost:3001/?code=${tempCode}`);
+
+    } catch (error) {
+      console.error(error.response?.data || error.message);
+      res.status(500).send("GitHub authentication failed");
+    }
+  });
+
+  router.get("/facebook/callback", async (req, res) => {
+    const code = req.query.code;
+    try {
+      const ipKey = `login_attempt:${req.ip}`;
+      const attempts = await redisClient.incr(ipKey);
+
+      if (attempts === 1) {
+        await redisClient.expire(ipKey, 60);
+      }
+      if (attempts > 10) {
+        return res.status(429).send("Too many login attempts");
+      }
+      const tokenRes = await axios.get(
+            "https://graph.facebook.com/v25.0/oauth/access_token",
+            {
+              params: {
+                client_id: FB_APP_ID,
+                client_secret: FB_APP_SECRET,
+                redirect_uri: REDIRECT_URI,
+                code,
+              },
+            }
+          );
+
+      const accessToken = tokenRes.data.access_token;
+
+      const userRes = await axios.get(
+        "https://graph.facebook.com/v25.0/me",
+        {
+          params: {
+            fields: "id,name,email",
+            access_token: accessToken,
+          },
+        }
+      );
+
+      const fbUser = userRes.data;
+
+      const user = {
+        provider: "facebook",
+        providerId: fbUser.id,
+        email: fbUser.email,
+        name: fbUser.name,
+      }
+
+      // 🔐 Same temp code flow
+      const tempCode = crypto.randomBytes(32).toString("hex");
+
+      await redisClient.set(
+        `auth_code:${tempCode}`,
+        JSON.stringify(user),
+        { EX: 60 }
+      );
+
+      res.redirect(`http://localhost:3001/?code=${tempCode}`);
+
+    } catch (error) {
+      console.error(error.response?.data || error.message);
+      res.status(500).send("Facebook authentication failed");
+    }
+
+  });
+
+  if (!code) return res.status(400).send("No code provided");
 
   router.post("/exchange-code", async (req, res) => {
     const { code } = req.body;
@@ -196,19 +274,52 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           email: user.email,
           name: user.name,
           createdAt: new Date(),
+          logoutAt: null,
           tokenIssuedAt: iat,
           devid,
           usage: {tavily: 0, elevenlabs: 0},
-          $vectorize: user.email
+          $vectorize: user.email,
+          markforDeletion: false,
+          deletionReason: null,
+          deletionRequestedAt: null,
         })
+
+        const email = sendEmail(
+          user.email,
+          "Welcome to IniyaAI!",
+          "",
+          `<p>Hi ${user.name},</p><p>Welcome to <b>IniyaAI</b>! We're excited to have you on board. If you have any questions or need assistance, feel free to reach out.</p><p>Best regards,<br>Team Iniya</p>`
+        );
+        
+        if (email) {
+          console.log(`Welcome email sent to ${user.email}`);
+        } else {
+          console.error(`Failed to send welcome email to ${user.email}`);
+        }
+
       } else {
+        
+        const email = sendEmail(
+          user.email,
+          "Welcome back to IniyaAI!",
+          "",
+          `<p>Hi ${user.name},</p><p>Welcome back to <b>IniyaAI</b>! We're glad to see you again.</p><p>New Login Detected.</p><p>If it was not you, please reach out to us.</p><p>Best regards,<br>Team Iniya</p>`
+        );
+
+        if(email) {
+          console.log(`Login alert email sent to ${user.email}`);
+        }
+        else {
+          console.error(`Failed to send login alert email to ${user.email}`);
+        }
+
         let providers = dbSearch.providers || {};
         if (!providers[user.provider]) {
           providers[user.provider] = user.providerId;
         }
         await userCollection.updateOne(
           { _id: user._id},
-          { $set: { lastModified: new Date(), tokenIssuedAt: iat, providers, devid } }
+          { $set: { lastModified: new Date(), tokenIssuedAt: iat, providers, devid, logoutAt: null, markforDeletion: false, deletionReason: null, deletionRequestedAt: null,} }
         );
       }
 
@@ -265,7 +376,10 @@ export default function authRouter(redisClient, googleClient, astraDB) {
         return res.status(401).json({ error: "Device Id doesnt match. Please log in again.", success: false });
       }
 
-      await userCollection.deleteOne({email: decoded.email})
+      await userCollection.updateOne(
+        {email: decoded.email},
+        { $set: { tokenIssuedAt: null, devid: null, logoutAt: new Date() } }
+      );
       return res.status(200).json({success: true})
     
     } catch (error) {
@@ -273,5 +387,98 @@ export default function authRouter(redisClient, googleClient, astraDB) {
     }
   });
 
+  router.post("/delete-account", async (req, res) => {
+    const {name, email, reason} = req.body;
+    
+    if (!name || !email) {
+      return res.status(400).json({ error: "Name and email are required", success: false });
+    }
+
+    let user = await userCollection.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found", success: false });
+    }
+
+    if (user.name !== name) {
+      return res.status(400).json({ error: "Name does not match our records", success: false });
+    }
+
+    if (user.markforDeletion) {
+      return res.status(400).json({ error: "Account deletion already requested", success: false });
+    }
+
+    try {
+      const deleteCode = crypto.randomBytes(32).toString("hex");
+      await redisClient.set(
+        `delete_account:${deleteCode}`,
+        JSON.stringify({name, email, reason}),
+        { EX: 3600 } // expires in 1 hour
+      );
+
+      const emailSent = await sendEmail(
+        email,
+        "Confirm Your Account Deletion",
+        "",
+        `<p>Hi ${name},</p><p>We received a request to delete your IniyaAI account. If you made this request, please click the link below to confirm:</p><p><a href="https://iniyaai-backend.onrender.com/api/auth/confirm-delete?code=${deleteCode}">Confirm Account Deletion</a></p><p>If you did not request this, please ignore this email.</p><p>Best regards,<br>Team Iniya</p>`
+      );
+
+      if (emailSent) {
+        console.log(`Account deletion confirmation email sent to ${email}`);
+        return res.json({ success: true, message: "Confirmation email sent" });
+      }
+      else {
+        console.error(`Failed to send account deletion confirmation email to ${email}`);
+        return res.status(500).json({ success: false, message: "Failed to send confirmation email" });
+      }
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "Server error", success: false });
+    }
+  });
+
+  router.get("/confirm-delete", async (req, res) => {
+    const code = req.query.code;
+    try {
+      const data = await redisClient.get(`delete_account:${code}`);
+
+      if (!data) {
+        return res.status(400).send("Invalid or expired code");
+      }
+
+      const { name, email, reason } = JSON.parse(data);
+
+      await userCollection.updateOne(
+        { email },
+        { $set: {markforDeletion: true, deletionReason: reason, deletionRequestedAt: new Date() } }
+      );
+
+      return res.send("Your account deletion request has been confirmed. Your Account will be deleted After 30 days. If you change your mind, login again before the account is deleted");
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "Server error", success: false });
+    }
+  });
+
   return router;
+}
+
+async function sendEmail(to, subject, text, html) {
+  let transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "project.iniya@gmail.com",
+      pass: process.env.GOOGLE_APP_PASSWORD,
+    },
+  });
+
+  const info = await transporter.sendMail({
+    from: '"IniyaAI" <project.iniya@gmail.com>',
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  return info;
 }

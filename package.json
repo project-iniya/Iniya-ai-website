@@ -23,6 +23,7 @@
     "google-auth-library": "^10.6.2",
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.4",
     "redis": "^5.11.0"
   }
 }
