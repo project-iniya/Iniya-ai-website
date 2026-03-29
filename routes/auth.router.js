@@ -35,18 +35,6 @@ export default function authRouter(redisClient, googleClient, astraDB) {
   res.redirect(url);
 });
 
-router.get("/facebook", (req, res) => {
-  const redirect_uri = "https://iniyaai-backend.onrender.com/api/auth/facebook/callback"
-
-  const fbAuthURL = 
-    `https://www.facebook.com/v25.0/dialog/oauth?` +
-    `client_id=${process.env.FB_APP_ID}` +
-    `&redirect_uri=${redirect_uri}` +
-    `&scope=email,public_profile`;
-
-  res.redirect(fbAuthURL);
-});
-
   router.get("/google/callback", async (req, res) => {
     const code = req.query.code;
 
@@ -181,70 +169,6 @@ router.get("/facebook", (req, res) => {
       res.status(500).send("GitHub authentication failed");
     }
   });
-
-  router.get("/facebook/callback", async (req, res) => {
-    const code = req.query.code;
-    try {
-      const ipKey = `login_attempt:${req.ip}`;
-      const attempts = await redisClient.incr(ipKey);
-
-      if (attempts === 1) {
-        await redisClient.expire(ipKey, 60);
-      }
-      if (attempts > 10) {
-        return res.status(429).send("Too many login attempts");
-      }
-      const tokenRes = await axios.get(
-            "https://graph.facebook.com/v25.0/oauth/access_token",
-            {
-              params: {
-                client_id: FB_APP_ID,
-                client_secret: FB_APP_SECRET,
-                redirect_uri: REDIRECT_URI,
-                code,
-              },
-            }
-          );
-
-      const accessToken = tokenRes.data.access_token;
-
-      const userRes = await axios.get(
-        "https://graph.facebook.com/v25.0/me",
-        {
-          params: {
-            fields: "id,name,email",
-            access_token: accessToken,
-          },
-        }
-      );
-
-      const fbUser = userRes.data;
-
-      const user = {
-        provider: "facebook",
-        providerId: fbUser.id,
-        email: fbUser.email,
-        name: fbUser.name,
-      }
-
-      // 🔐 Same temp code flow
-      const tempCode = crypto.randomBytes(32).toString("hex");
-
-      await redisClient.set(
-        `auth_code:${tempCode}`,
-        JSON.stringify(user),
-        { EX: 60 }
-      );
-
-      res.redirect(`http://localhost:3001/?code=${tempCode}`);
-
-    } catch (error) {
-      console.error(error.response?.data || error.message);
-      res.status(500).send("Facebook authentication failed");
-    }
-
-  });
-
 
 
   router.post("/exchange-code", async (req, res) => {
@@ -455,7 +379,7 @@ router.get("/facebook", (req, res) => {
         { $set: {markforDeletion: true, deletionReason: reason, deletionRequestedAt: new Date() } }
       );
 
-      return res.send("Your account deletion request has been confirmed. Your Account will be deleted After 30 days. If you change your mind, login again before the account is deleted");
+      return res.redirect("https://iniya-ai.vercel.app/account-deletion-confirmed");
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Server error", success: false });
