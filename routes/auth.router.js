@@ -214,11 +214,38 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           user.email,
           "Welcome to IniyaAI!",
           "",
-          `<div style="font-family: Arial, sans-serif; line-height: 1.6; display: flex; flex-direction: column; align-items: center; padding: 20px;">
-            <h1 styles="color: #333;">WELCOME ABORD ${user.name},</h1>
-            <p>Welcome to <b>IniyaAI</b>! We're excited to have you on board. If you have any questions or need assistance, feel free to reach out.</p>
-            <p>Best regards,<br>Team Iniya</p>
-          </div>
+          `
+            <table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; padding: 20px;">
+              <tr>
+                <td align="center">
+                  <table width="500" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td align="center">
+                        <h1 style="color: #333; margin-bottom: 10px;">
+                          WELCOME ABOARD ${user.name},
+                        </h1>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <p style="font-size: 16px; color: #555;">
+                          Welcome to <b>IniyaAI</b>! We're excited to have you on board.
+                          If you have any questions or need assistance, feel free to reach out.
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <p style="font-size: 16px; color: #555;">
+                          Best regards,<br>
+                          Team Iniya
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
           `
         );
         
@@ -235,15 +262,44 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           "Welcome back to IniyaAI!",
           "",
           `
-          <div style="font-family: Arial, sans-serif; line-height: 1.6; display: flex; flex-direction: column; align-items: center; padding: 20px;">
-            <h1 styles="color: #333;">WELCOME BACK ${user.name},</h1>
-            <div style="padding: 50px 20px; display: flex; flex-direction: column; align-items: center; background-color: #f9f9f9;">
-              <p>New Login Detected.</p>
-              <p>If it was not you, please reach out to us.</p>
-            </div>
-            <p>Best regards,<br>Team Iniya</p>
-          </div>
-          `
+            <table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; padding: 20px;">
+            <tr>
+              <td align="center">
+                <table width="500" cellpadding="0" cellspacing="0">
+                  
+                  <tr>
+                    <td align="center">
+                      <h1 style="color: #333; margin-bottom: 10px;">
+                        WELCOME BACK ${user.name},
+                      </h1>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td align="center" style="background-color: #f9f9f9; padding: 30px; border-radius: 6px;">
+                      <p style="font-size: 16px; color: #555; margin: 0;">
+                        New Login Detected.
+                      </p>
+                      <p style="font-size: 16px; color: #555; margin-top: 10px;">
+                        If it was not you, please reach out to us.
+                      </p>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <p style="font-size: 16px; color: #555; margin-top: 20px;">
+                        Best regards,<br>
+                        Team Iniya
+                      </p>
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+        `
         );
 
         if(email) {
@@ -361,14 +417,58 @@ export default function authRouter(redisClient, googleClient, astraDB) {
         "Confirm Your Account Deletion",
         "",
         `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; display: flex; flex-direction: column; align-items: center; padding: 20px;">
-          <h1 style="color: #333;">Confirm Account Deletion</h1>
-          <p>Hi ${name},</p>
-          <p>We received a request to delete your IniyaAI account. If you made this request, please click the link below to confirm:</p>
-          <p><a href="https://iniyaai-backend.onrender.com/api/auth/confirm-delete?code=${deleteCode}" style="background-color: #270c70; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Confirm Account Deletion</a></p>
-          <p>If you did not request this, please ignore this email.</p>
-          <p>Best regards,<br>Team Iniya</p>
-        </div>`
+          <table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; padding: 20px;">
+            <tr>
+              <td align="center">
+                <table width="500" cellpadding="0" cellspacing="0">
+
+                  <tr>
+                    <td align="center">
+                      <h1 style="color: #333; margin-bottom: 10px;">
+                        Confirm Account Deletion
+                      </h1>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <p style="font-size: 16px; color: #555;">
+                        Hi ${name},
+                      </p>
+
+                      <p style="font-size: 16px; color: #555;">
+                        We received a request to delete your IniyaAI account. If you made this request, please click the button below to confirm:
+                      </p>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td align="center" style="padding: 20px 0;">
+                      <a href="https://iniyaai-backend.onrender.com/api/auth/confirm-delete?code=${deleteCode}"
+                        style="background-color: #270c70; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-size: 16px;">
+                        Confirm Account Deletion
+                      </a>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <p style="font-size: 16px; color: #555;">
+                        If you did not request this, please ignore this email.
+                      </p>
+
+                      <p style="font-size: 16px; color: #555; margin-top: 20px;">
+                        Best regards,<br>
+                        Team Iniya
+                      </p>
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+        `
       );
 
       if (emailSent) {
