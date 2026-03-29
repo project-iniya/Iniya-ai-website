@@ -214,7 +214,12 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           user.email,
           "Welcome to IniyaAI!",
           "",
-          `<p>Hi ${user.name},</p><p>Welcome to <b>IniyaAI</b>! We're excited to have you on board. If you have any questions or need assistance, feel free to reach out.</p><p>Best regards,<br>Team Iniya</p>`
+          `<div style="font-family: Arial, sans-serif; line-height: 1.6; display: flex; flex-direction: column; align-items: center; padding: 20px;">
+            <h1 styles="color: #333;">WELCOME ABORD ${user.name},</h1>
+            <p>Welcome to <b>IniyaAI</b>! We're excited to have you on board. If you have any questions or need assistance, feel free to reach out.</p>
+            <p>Best regards,<br>Team Iniya</p>
+          </div>
+          `
         );
         
         if (email) {
@@ -229,7 +234,16 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           user.email,
           "Welcome back to IniyaAI!",
           "",
-          `<p>Hi ${user.name},</p><p>Welcome back to <b>IniyaAI</b>! We're glad to see you again.</p><p>New Login Detected.</p><p>If it was not you, please reach out to us.</p><p>Best regards,<br>Team Iniya</p>`
+          `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; display: flex; flex-direction: column; align-items: center; padding: 20px;">
+            <h1 styles="color: #333;">WELCOME BACK ${user.name},</h1>
+            <div style="padding: 50px 20px; display: flex; flex-direction: column; align-items: center; background-color: #f9f9f9;">
+              <p>New Login Detected.</p>
+              <p>If it was not you, please reach out to us.</p>
+            </div>
+            <p>Best regards,<br>Team Iniya</p>
+          </div>
+          `
         );
 
         if(email) {
@@ -346,7 +360,15 @@ export default function authRouter(redisClient, googleClient, astraDB) {
         email,
         "Confirm Your Account Deletion",
         "",
-        `<p>Hi ${name},</p><p>We received a request to delete your IniyaAI account. If you made this request, please click the link below to confirm:</p><p><a href="https://iniyaai-backend.onrender.com/api/auth/confirm-delete?code=${deleteCode}">Confirm Account Deletion</a></p><p>If you did not request this, please ignore this email.</p><p>Best regards,<br>Team Iniya</p>`
+        `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; display: flex; flex-direction: column; align-items: center; padding: 20px;">
+          <h1 style="color: #333;">Confirm Account Deletion</h1>
+          <p>Hi ${name},</p>
+          <p>We received a request to delete your IniyaAI account. If you made this request, please click the link below to confirm:</p>
+          <p><a href="https://iniyaai-backend.onrender.com/api/auth/confirm-delete?code=${deleteCode}" style="background-color: #270c70; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Confirm Account Deletion</a></p>
+          <p>If you did not request this, please ignore this email.</p>
+          <p>Best regards,<br>Team Iniya</p>
+        </div>`
       );
 
       if (emailSent) {
@@ -379,7 +401,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
         { $set: {markforDeletion: true, deletionReason: reason, deletionRequestedAt: new Date() } }
       );
 
-      return res.redirect("https://iniya-ai.vercel.app/account-deletion-confirmed");
+      return res.redirect("https://iniya-ai.vercel.app/successConfDelete");
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Server error", success: false });
