@@ -203,7 +203,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           logoutAt: null,
           tokenIssuedAt: iat,
           devid,
-          usage: {tavily: 0, elevenlabs: 0},
+          usage: {tavily: 0, elevenlabs_tts: 0, hf_stt: 0},
           $vectorize: user.email,
           markforDeletion: false,
           deletionReason: null,
@@ -507,6 +507,28 @@ export default function authRouter(redisClient, googleClient, astraDB) {
       return res.status(500).json({ error: "Server error", success: false });
     }
   });
+
+  router.get("/get-usage", async (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(400).json({ error: "Token is required" });
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await userCollection.findOne({ email: decoded.email });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ usage: user.usage || { tavily: 0, elevenlabs_tts: 0, hf_stt: 0 } });
+    } catch (error) {
+      console.error(error);
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+  });
+
 
   return router;
 }
