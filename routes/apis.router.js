@@ -143,13 +143,14 @@ export default function apisRouter(astraDB) {
     if (!req.file)
       return res.status(400).json({ error: "No audio file provided" });
 
-    const metadata = await mm.parseBuffer(req.file.buffer, req.file.mimetype);
-    const duration = metadata.format.duration; // in seconds
-  
-    if (duration > 120) // 2 minutes
-      return res.status(400).json({ error: "Audio duration exceeds maximum of 2 minutes" });
-
     try {
+
+      const metadata = await mm.parseBuffer(req.file.buffer, req.file.mimetype);
+      const duration = metadata.format.duration; // in seconds
+    
+      if (duration > 120) // 2 minutes
+        return res.status(400).json({ error: "Audio duration exceeds maximum of 2 minutes" });
+
       const user = await userCollection.findOne({ email: req.user.email });
       if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -157,7 +158,7 @@ export default function apisRouter(astraDB) {
         return res.status(403).json({ error: "Speech-to-text usage limit reached" });
       }
 
-      data = req.file.buffer;
+      const data = req.file.buffer;
       const result = await hfClient.automaticSpeechRecognition({
         data,
         model: "openai/whisper-large-v3-turbo",
