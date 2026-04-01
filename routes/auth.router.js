@@ -203,7 +203,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
           logoutAt: null,
           tokenIssuedAt: iat,
           devid,
-          usage: {tavily: 0, elevenlabs_tts: 0, hf_stt: 0},
+          usage: {tavily: 0},
           $vectorize: user.email,
           markforDeletion: false,
           deletionReason: null,
@@ -396,9 +396,6 @@ export default function authRouter(redisClient, googleClient, astraDB) {
       return res.status(404).json({ error: "User not found", success: false });
     }
 
-    if (user.name !== name) {
-      return res.status(400).json({ error: "Name does not match our records", success: false });
-    }
 
     if (user.markforDeletion) {
       return res.status(400).json({ error: "Account deletion already requested", success: false });
@@ -522,7 +519,7 @@ export default function authRouter(redisClient, googleClient, astraDB) {
         return res.status(404).json({ error: "User not found" });
       }
 
-      res.json({ usage: user.usage || { tavily: 0, elevenlabs_tts: 0, hf_stt: 0 } });
+      res.json({ usage: user.usage || { tavily: 0 } });
     } catch (error) {
       console.error(error);
       return res.status(401).json({ error: "Invalid or expired token" });
