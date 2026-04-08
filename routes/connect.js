@@ -30,7 +30,11 @@ export default function connectRouter(redisClient) {
 
     try {
       const connectLink = `${process.env.FRONTEND_URL}/connect?code=${code}&connect=true`
-      const qrBase64 = await QRCode.toDataURL(connectLink);
+      const qrBase64 = await QRCode.toDataURL(connectLink, {
+        width: 400,
+        margin: 2,
+        errorCorrectionLevel: 'H'
+      });
       res.json({ qrBase64, connectLink });
     } catch (error) {
       console.error("Error generating QR code:", error);
