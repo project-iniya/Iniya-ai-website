@@ -27,6 +27,7 @@
     "music-metadata": "^11.12.3",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.4",
+    "qrcode": "^1.5.4",
     "redis": "^5.11.0"
   }
 }

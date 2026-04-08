@@ -2,6 +2,9 @@ import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import { createClient } from 'redis';
 import { DataAPIClient } from "@datastax/astra-db-ts";
+import http from 'http';
+import { WebSocketServer } from 'ws';
+import { setupConnectWS } from "./ws/connect.js";
 import app from "./server.js";
 
 dotenv.config();
@@ -33,7 +36,11 @@ try {
   const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
   console.log('Google OAuth2 Client initialized');
 
-  const server = await app(redisClient, googleClient, astraDB);
+  const server = http.createServer(await app(redisClient, googleClient, astraDB));
+  const wss = new WebSocketServer({ server: server });
+
+  setupConnectWS(wss, redisClient);
+
   server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
